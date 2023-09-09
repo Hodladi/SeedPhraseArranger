@@ -2,111 +2,87 @@
 using NBitcoin;
 using System.Net.Http.Json;
 using System.Net.Http;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using System;
 
-namespace SeedPhraseArranger;
-class Program
+namespace SeedPhraseArranger
 {
-    static string KnownPublicKey = "THE ADDRESS THAT IS CREATED BY THE SEED PHRASE"; // CHANGE THIS
-    static readonly HttpClient httpClient = new HttpClient();
-    static int counter = 0;
-
-    static async Task Main(string[] args)
+    class Program
     {
-        string[] seedWords = new string[12];
-        Console.WriteLine("Enter your 12-word seed phrase (one word at a time then press ENTER):");
+        static string KnownBitcoinAddress;
+        static readonly HttpClient httpClient = new HttpClient();
+        static int counter = 0;
 
-        for (int i = 0; i < 12; i++)
+        static async Task Main(string[] args)
         {
-            Console.Write($"Enter word {i + 1}: ");
-            seedWords[i] = Console.ReadLine();
-        }
+            string[] seedWords = new string[12];
+            Console.WriteLine("Enter your 12-word seed phrase (one word at a time then press ENTER):");
 
-        Console.WriteLine("Starting to check permutations...");
-
-        await GenerateAndCheckPermutations(seedWords.ToList(), 0);
-    }
-
-    static async Task GenerateAndCheckPermutations(List<string> seedWords, int position)
-    {
-        if (position == seedWords.Count - 1)
-        {
-            counter++;
-            string seedPhrase = string.Join(" ", seedWords);
-
-            if (counter % 100 == 0)
+            for (int i = 0; i < 12; i++)
             {
-                Console.WriteLine($"Checked {counter} permutations so far...");
+                Console.Write($"Enter word {i + 1}: ");
+                seedWords[i] = Console.ReadLine();
             }
 
-            bool checksumValid = CheckChecksum(seedPhrase);
-            bool addressValid = await CheckAddressAgainstNode(seedPhrase);
-            bool publicKeyMatches = CheckPublicKey(seedPhrase);
+            Console.Write("Enter the known Bitcoin address: ");
+            KnownBitcoinAddress = Console.ReadLine();
 
-            if (checksumValid && addressValid && publicKeyMatches)
+            Console.WriteLine("Starting to check permutations...");
+
+            await GenerateAndCheckPermutations(seedWords.ToList(), 0);
+        }
+        static async Task GenerateAndCheckPermutations(List<string> seedWords, int position)
+        {
+            if (position == seedWords.Count - 1)
             {
-                Console.WriteLine($"Found valid arrangement: {seedPhrase}");
-                Environment.Exit(0);
+                counter++;
+                string seedPhrase = string.Join(" ", seedWords);
+
+                if (counter % 100 == 0)
+                {
+                    Console.WriteLine($"Checked {counter} permutations so far...");
+                }
+
+                bool checksumValid = CheckChecksum(seedPhrase);
+                bool addressMatches = await CheckAddress(seedPhrase);
+
+                if (checksumValid && addressMatches)
+                {
+                    Console.WriteLine($"Found valid arrangement: {seedPhrase}");
+                    Environment.Exit(0);
+                }
+
+                return;
             }
 
-            return;
-        }
+            for (int i = position; i < seedWords.Count; i++)
+            {
+                (seedWords[position], seedWords[i]) = (seedWords[i], seedWords[position]);
 
-        for (int i = position; i < seedWords.Count; i++)
+                await GenerateAndCheckPermutations(new List<string>(seedWords), position + 1);
+
+                (seedWords[position], seedWords[i]) = (seedWords[i], seedWords[position]);
+            }
+        }
+        static bool CheckChecksum(string seedPhrase)
         {
-            // Swap
-            (seedWords[position], seedWords[i]) = (seedWords[i], seedWords[position]);
-
-            await GenerateAndCheckPermutations(new List<string>(seedWords), position + 1);
-
-            // Backtrack
-            (seedWords[position], seedWords[i]) = (seedWords[i], seedWords[position]);
+            try
+            {
+                Mnemonic mnemonic = new Mnemonic(seedPhrase);
+                return mnemonic.IsValidChecksum;
+            }
+            catch
+            {
+                return false;
+            }
         }
-    }
-
-    static bool CheckChecksum(string seedPhrase)
-    {
-        try
+        static async Task<bool> CheckAddress(string seedPhrase)
         {
             Mnemonic mnemonic = new Mnemonic(seedPhrase);
-            return mnemonic.IsValidChecksum;
+            ExtKey hdRoot = mnemonic.DeriveExtKey();
+            BitcoinAddress address = hdRoot.Derive(new KeyPath("m/44'/0'/0'/0/0")).PrivateKey.PubKey.GetAddress(ScriptPubKeyType.Legacy, Network.Main);
+            return KnownBitcoinAddress == address.ToString();
         }
-        catch
-        {
-            return false;
-        }
-    }
-
-    static async Task<bool> CheckAddressAgainstNode(string seedPhrase)
-    {
-        string rpcUrl = "http://CLEARNET.ADDRESS.TO.A.NODE:8332"; // CHANGE THIS
-        string rpcUsername = "RPC USERNAME"; // CHANGE THIS
-        string rpcPassword = "RPC PASSWORD"; // CHANGE THIS
-
-        Mnemonic mnemonic = new Mnemonic(seedPhrase);
-        ExtKey hdRoot = mnemonic.DeriveExtKey();
-        BitcoinAddress address = hdRoot.Derive(new KeyPath("m/44'/0'/0'/0/0")).PrivateKey.PubKey.GetAddress(ScriptPubKeyType.Legacy, Network.Main);
-
-        httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(System.Text.Encoding.ASCII.GetBytes($"{rpcUsername}:{rpcPassword}")));
-
-        var payload = new
-        {
-            jsonrpc = "2.0",
-            id = 1,
-            method = "validateaddress",
-            @params = new[] { address.ToString() }
-        };
-
-        var response = await httpClient.PostAsJsonAsync(rpcUrl, payload);
-        var content = await response.Content.ReadAsStringAsync();
-        JObject json = JObject.Parse(content);
-        return (bool)json["result"]["isvalid"];
-    }
-
-    static bool CheckPublicKey(string seedPhrase)
-    {
-        Mnemonic mnemonic = new Mnemonic(seedPhrase);
-        ExtKey hdRoot = mnemonic.DeriveExtKey();
-        PubKey publicKey = hdRoot.Derive(new KeyPath("m/44'/0'/0'/0/0")).PrivateKey.PubKey; // CHANGE THIS IF NEEDED
-        return publicKey.ToString() == KnownPublicKey;
     }
 }
