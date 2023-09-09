@@ -78,7 +78,6 @@ namespace SeedPhraseArranger
         //    BitcoinAddress address = hdRoot.Derive(new KeyPath("m/44'/0'/0'/0/0")).PrivateKey.PubKey.GetAddress(ScriptPubKeyType.Legacy, Network.Main);
         //    return KnownBitcoinAddress == address.ToString();
         //}
-
         static async Task<bool> CheckAddress(string seedPhrase)
         {
             Mnemonic mnemonic = new Mnemonic(seedPhrase);
