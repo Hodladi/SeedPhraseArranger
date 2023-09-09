@@ -1,8 +1,12 @@
 This console application is doing the following!
 
-It gets 12 words as input (bip39 list) from the user and then starts generating all possible permutations of these words. For each permutation, it checks three things:
-- If the checksum of the seed phrase is valid.
-- If the Bitcoin address generated from the seed phrase is valid (by contacting a Bitcoin node).
-- If the public key matches a known public key.
+- Asks the user to input each word of a 12-word seed phrase, one at a time.
+- Asks the user to enter a known Bitcoin address that is derived from the original (but unordered) 12-word seed phrase.
+- Generates all permutations of the entered seed phrase and checks each one against the known Bitcoin address, along with validating the checksum.
+- Outputs the correct ordering of the seed phrase that matches the provided Bitcoin address if it finds a match.
 
-  If all three conditions are met, it prints out the valid seed phrase and terminates the program.
+  Worth your attention is that there is two methods named the same
+  CheckAddress()
+  the first one is commented out, that only checks the first derived address of the seed phrase.
+
+  the second that is not commented out, that checks the first 50 derived addresses of the seed phrase.
