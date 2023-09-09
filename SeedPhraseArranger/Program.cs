@@ -1,10 +1,4 @@
-﻿using Newtonsoft.Json.Linq;
-using NBitcoin;
-using System.Net.Http.Json;
-using System.Net.Http;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using System;
+﻿using NBitcoin;
 
 namespace SeedPhraseArranger
 {
@@ -77,12 +71,28 @@ namespace SeedPhraseArranger
                 return false;
             }
         }
+        //static async Task<bool> CheckAddress(string seedPhrase)
+        //{
+        //    Mnemonic mnemonic = new Mnemonic(seedPhrase);
+        //    ExtKey hdRoot = mnemonic.DeriveExtKey();
+        //    BitcoinAddress address = hdRoot.Derive(new KeyPath("m/44'/0'/0'/0/0")).PrivateKey.PubKey.GetAddress(ScriptPubKeyType.Legacy, Network.Main);
+        //    return KnownBitcoinAddress == address.ToString();
+        //}
+
         static async Task<bool> CheckAddress(string seedPhrase)
         {
             Mnemonic mnemonic = new Mnemonic(seedPhrase);
             ExtKey hdRoot = mnemonic.DeriveExtKey();
-            BitcoinAddress address = hdRoot.Derive(new KeyPath("m/44'/0'/0'/0/0")).PrivateKey.PubKey.GetAddress(ScriptPubKeyType.Legacy, Network.Main);
-            return KnownBitcoinAddress == address.ToString();
+
+            for (int i = 0; i < 50; i++)
+            {
+                BitcoinAddress address = hdRoot.Derive(new KeyPath($"m/44'/0'/0'/0/{i}")).PrivateKey.PubKey.GetAddress(ScriptPubKeyType.Legacy, Network.Main);
+                if (KnownBitcoinAddress == address.ToString())
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }
